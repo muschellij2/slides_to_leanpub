@@ -63,8 +63,18 @@ ui <- dashboardPage(
                         textInput("gs_id", HTML(paste0(
                             "Google Folder ID ", "(e.g. ", 
                             "1pXBQQdd1peI56GtQT-jEZ59xSmhqQlFC )", "<br>", 
-                            "This will open an authentication window"))
-                        )
+                            "This will open an authentication window",
+                            "<br>", 
+                            "Warning: slides in this folder will be published"))
+                        ),
+                        checkboxInput(
+                            "add_number", 
+                            HTML(
+                                paste0(
+                                    "Add a prefix to the file names",
+                                    "(e.g. slide_deck becomes 00_slide_deck)")
+                            )),
+                        textInput("course_name", "Course Name")
                     ),
                     box(
                         title = "Render Video",
@@ -73,7 +83,11 @@ ui <- dashboardPage(
                                          icon = icon("video"))
                         ),
                         shinyjs::disabled(
-                            downloadButton("gs_download", "Download Video",
+                            actionButton("gs_create", "Create Course",
+                                         icon = icon("video"))
+                        ),  
+                        shinyjs::disabled(
+                            downloadButton("gs_download", "Download Course",
                                            icon = icon("download"))
                         )
                     ),
@@ -102,16 +116,42 @@ server <- function(input, output) {
     
     vals = reactiveValues(gs_id = NULL)
     
+    createLink <- function(href, name) {
+        sprintf(
+            '<a href="%s" target="_blank" class="btn btn-primary">%s</a>', 
+            href, name)
+    }
+    createImg <- function(link, height = 100, width = height*9/6) {
+        height = round(height)
+        width = round(width)
+        sprintf(
+            '<img src="%s" height="%d" width="%d">',
+            link, height, width)
+    }
+    
     
     folder_df = reactive({
         if (!is.null(input$gs_id)) {
             check_didactr_auth()
             df = gs_folder_df(trimws(input$gs_id), slides_only = TRUE)
-            print(df)
+            df$link = sapply(df$drive_resource, function(x) {
+                createLink(name = "Link", href = x$webViewLink)
+            })
+            df$thumbnail = sapply(df$drive_resource, function(x) {
+                createImg(x$thumbnailLink)
+            })            
+            # print(df)
             df = df %>% 
-                select(name, id)
+                select(name, link, thumbnail)
             # df = as.data.frame(df)
             # df = df[, c("name", "id")]
+            print("Course name")
+            print(input$course_name)
+            if (!is.null(input$course_name) && 
+                input$course_name != "") {
+                shinyjs::enable("gs_create") 
+            }
+            
             print(df)
         } else {
             df = tibble::tibble()
@@ -129,8 +169,37 @@ server <- function(input, output) {
         }
         df
         # as.data.frame(df)
-    }, escape = FALSE)
-
+    }, escape = FALSE, options = list(searching = FALSE))
+    
+    
+    observeEvent(input$gs_create, {
+        validate(
+            need(input$gs_id, "Need Google Folder ID"),
+            need(input$course_name, "Need Course Name")
+        )
+        df = folder_df()
+        root_path = tempfile()
+        vals$root_path = root_path
+        
+        cat_and_log("Running course creation for GS")
+        withCallingHandlers(
+            {            
+                course_result = create_course(course_name = input$course_name,
+                                              root_path = vals$root_path,
+                                              folder_id = input$gs_id,
+                                              add_number = input$add_number)
+            },
+            message = function(m) {
+                shinyjs::logjs(m$message)
+            },
+            warning = function(w) {
+                shinyjs::logjs(w$message)
+            }            
+        )            
+        vals$course_result = course_result
+        shinyjs::enable("gs_download") 
+    })
+    
     
     observeEvent(input$gs_render, {
         if (!exists("gs_ari_result")) {
@@ -161,21 +230,37 @@ server <- function(input, output) {
     ################################
     # Rendering Video for Downlaod
     ################################
+    # output$gs_download <- downloadHandler(
+    #     filename = function() {
+    #         name = paste0(
+    #             "gs_", 
+    #             input$gs_id,
+    #             "_",
+    #             input$voice,
+    #             "_",
+    #             input$service,
+    #             ".mp4")
+    #         cat_and_log(paste0("output file is ", name))
+    #         return(name)
+    #     },
+    #     content = function(output) {
+    #         file.copy(gs_video, output, overwrite = TRUE)
+    #     }
+    # )
+    
     output$gs_download <- downloadHandler(
         filename = function() {
-            name = paste0(
-                "gs_", 
-                input$gs_id,
-                "_",
-                input$voice,
-                "_",
-                input$service,
-                ".mp4")
+            cn = vals$course_result$course_name
+            name = paste0(cn, ".zip")
             cat_and_log(paste0("output file is ", name))
             return(name)
         },
         content = function(output) {
-            file.copy(gs_video, output, overwrite = TRUE)
+            owd = getwd()
+            cdir = vals$course_result$course_dir
+            setwd(dirname(cdir))
+            zip(output, files = basename(cdir))
+            setwd(owd)
         }
     )
     
