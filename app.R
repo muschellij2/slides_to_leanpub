@@ -1,19 +1,20 @@
 ## app.R ##
 # auth_file = "google_authorization.json"
 # Sys.setenv(GL_AUTH = auth_file)
-library(animation) #need for ffmpeg
 library(shiny)
 library(shinyjs)
 library(shinydashboard)
-library(text2speech)
-library(ari)
-library(ariExtra)
 library(didactr)
-library(googleAuthR)
-library(googleLanguageR)
-library(png)
 library(dplyr)
 library(googledrive)
+
+# library(animation) #need for ffmpeg
+# library(text2speech)
+# library(ari)
+# library(ariExtra)
+# library(googleAuthR)
+# library(googleLanguageR)
+# library(png)
 
 source("helper_functions.R")
 
