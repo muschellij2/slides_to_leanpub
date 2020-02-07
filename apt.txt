@@ -1,0 +1,12 @@
+libpoppler-cpp-dev 
+ffmpeg 
+libtesseract-dev 
+libleptonica-dev 
+tesseract-ocr-eng 
+libwebp-dev 
+libgdal-dev 
+imagemagick 
+cargo 
+libsodium-dev 
+libavfilter-dev 
+libreoffice 
