@@ -15,16 +15,14 @@ library(googledrive)
 # library(googleAuthR)
 # library(googleLanguageR)
 # library(png)
+# ari::ffmpeg_exec()
+# x = ari::ffmpeg_audio_codecs()
+# x = x[ x$encoding_supported, ]
+# ari::set_audio_codec("aac")
 
 source("helper_functions.R")
 
-ari::ffmpeg_exec()
-x = ari::ffmpeg_audio_codecs()
-x = x[ x$encoding_supported, ]
-# cat(file = stderr(), paste(x$codec, collapse = "\n"))
-# cat(file = stderr(), paste(x$codec_name, collapse = "\n"))
 
-ari::set_audio_codec("aac")
 
 # need these for rechecks
 gs_id = ""
